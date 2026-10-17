@@ -34,7 +34,7 @@ def _mono_exp(t, s0, tau, t0):
 def fit_sprint(t: np.ndarray, x: np.ndarray, y: np.ndarray) -> dict:
     """Fit the sprint model to one 40-yard attempt. Returns NaNs when the trace is unusable."""
     out = {k: np.nan for k in ("S0", "tau", "A0", "Pmax_rel", "split10", "split20", "split40",
-                               "vmax_obs", "fit_rmse", "fit_r2")}
+                               "vmax_obs", "fit_rmse", "fit_r2", "t0")}
     if t.size < 20:
         return out
     t = t - t[0]
@@ -70,7 +70,7 @@ def fit_sprint(t: np.ndarray, x: np.ndarray, y: np.ndarray) -> dict:
         return float(t[j] - t_start) if j < t.size else np.nan
 
     out.update({
-        "S0": s0, "tau": tau, "A0": a0,
+        "S0": s0, "tau": tau, "A0": a0, "t0": t0,
         "Pmax_rel": a0 * s0 / 4.0,  # peak of a*v on the linear A-S line (yd^2/s^3, ∝ W/kg)
         "split10": split(10), "split20": split(20), "split40": split(40),
         "vmax_obs": float(s[i0:end].max()),

@@ -25,7 +25,7 @@ def _clean(*arrays):
 def spearman_ci(x, y, n_boot: int = 1000, seed: int = 0) -> dict:
     x, y = _clean(x, y)
     n = x.size
-    if n < 8:
+    if n < 8 or np.ptp(x) == 0 or np.ptp(y) == 0:
         return {"n": n, "rho": np.nan, "lo": np.nan, "hi": np.nan, "p": np.nan}
     rho, p = stats.spearmanr(x, y)
     rng = np.random.default_rng(seed)
