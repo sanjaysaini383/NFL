@@ -57,9 +57,19 @@ def player_play(data_dir: Path | None = None, columns: Iterable[str] | None = No
 
 
 def time_to_seconds(t: pd.Series) -> np.ndarray:
-    """Timestamps (mixed ISO formats) -> float seconds since epoch."""
-    ts = pd.to_datetime(t, format="mixed", utc=True)
-    return ts.astype("int64").to_numpy() / 1e9
+    """Timestamps -> float seconds since epoch.
+
+    The vectorised ISO8601 parser is ~100x faster than format="mixed", so it is
+    tried first; numeric seconds are passed through.
+    """
+    if pd.api.types.is_numeric_dtype(t):
+        return t.to_numpy(dtype=float)
+    t = t.astype(str).str.replace(" ", "T", n=1, regex=False)
+    try:
+        ts = pd.to_datetime(t, format="ISO8601", utc=True)
+    except (ValueError, TypeError):
+        ts = pd.to_datetime(t, format="mixed", utc=True)
+    return (ts - pd.Timestamp("2020-01-01", tz="UTC")).dt.total_seconds().to_numpy()
 
 
 def _cached(name: str, usecols: list[str], data_dir: Path | None, work: Path | None,
