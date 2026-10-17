@@ -39,14 +39,16 @@ def fit_sprint(t: np.ndarray, x: np.ndarray, y: np.ndarray) -> dict:
         return out
     t = t - t[0]
     s = speed_from_xy(t, x, y)
-    moving = np.flatnonzero(s > 0.8)
-    if moving.size == 0:
+    if s.max() < 4:
         return out
-    i0 = max(moving[0] - 2, 0)
+    # Start = last near-standstill frame before peak speed, so a walk-up to the
+    # line before the stance does not leak into the fit.
+    i_peak = int(np.argmax(s))
+    still = np.flatnonzero(s[:i_peak] < 0.8)
+    i0 = int(still[-1]) if still.size else 0
     d = path_length(x, y)
     d = d - d[i0]
     # fit window: from the start of motion until 42 yd or peak speed + 0.5 s
-    i_peak = i0 + int(np.argmax(s[i0:]))
     end = min(np.searchsorted(d, 42.0), i_peak + int(0.5 * config.HZ)) + 1
     tw, sw = t[i0:end], s[i0:end]
     if tw.size < 15 or s.max() < 4:

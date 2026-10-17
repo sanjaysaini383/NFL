@@ -76,3 +76,13 @@ def test_engine_from_splits_round_trip():
     # a realistic WR: 1.50 / 4.40
     real = cf.engine_from_splits(1.50, 4.40)
     assert 9 < real["S0"] < 13 and real["A0"] > 5
+
+
+def test_sprint_fit_ignores_walk_up_before_stance():
+    x, _ = synthetic._sprint(10.0, 1.05, rng=np.random.default_rng(4))
+    walk = np.linspace(-6, 0, 40)  # 4 s walking to the line at 1.5 yd/s
+    xs = np.concatenate([walk, x])
+    t = np.arange(xs.size) * config.DT
+    out = cf.fit_sprint(t, xs, np.zeros_like(xs))
+    assert out["S0"] == pytest.approx(10.0, rel=0.03)
+    assert out["tau"] == pytest.approx(1.05, rel=0.1)
