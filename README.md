@@ -13,6 +13,15 @@ We fit **one physics model**, the acceleration–speed profile `a(v) = A0·(1 �
 
 Then we ask, per position: Is the metric reliable (test-retest ICC)? How much of the engine is expressed? Which pieces predict snaps, starts and play-level success **beyond draft slot** (partial Spearman + FDR)? And does tracking add **out-of-fold** predictive value over the stopwatch Combine?
 
+## Key findings (510 prospects, 2023–2025 classes)
+
+* **Top speed is a trait; agility-drill braking isn't (yet).** Tracked S0 test-retest ICC is 0.96; turn and braking metrics are 0.23–0.52.
+* **Combine speed shows up in games for DL (ρ 0.59) and WR (0.48), not for DB or OL (≈0).**
+* **For snaps and starts, draft slot already prices athleticism in.** Naive in-game peaks look predictive only because starters get more chances; measuring every player on 80 random plays removes the effect.
+* **Edge rushers: draft the first step, not the top speed.** Beyond draft slot, relative power (+0.35), the 10-yd split (+0.35) and in-game acceleration and braking predict pressure rate. Top speed doesn't (+0.01).
+
+Full write-up: [writeup/WRITEUP.md](writeup/WRITEUP.md).
+
 ## What's in the repo
 
 ```

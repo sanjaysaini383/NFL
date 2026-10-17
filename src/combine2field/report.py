@@ -14,7 +14,16 @@ from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 from . import config  # noqa: E402
 from .combine_features import _mono_exp, fit_sprint  # noqa: E402
 from .kinematics import speed_from_xy  # noqa: E402
+from .outcomes import PRIMARY_PLAY_OUTCOME  # noqa: E402
 from .translation import FEATURE_LABELS  # noqa: E402
+
+METRIC_LABELS = {
+    "vmax_obs": "Peak speed", "S0": "Top speed S0", "split40": "40-yd split", "split20": "20-yd split",
+    "split10": "10-yd split", "Pmax_rel": "Relative power", "A0": "Max accel A0", "tau": "Time constant τ",
+    "drill_time": "Drill time", "turn_speed_ratio": "Turn speed retention", "brake_mean": "Mean braking",
+    "brake_peak": "Peak braking", "reaccel_peak": "Re-acceleration",
+}
+DRILL_LABELS = {"forty_yard_dash": "40", "three_cone_drill": "3-cone", "short_shuttle": "shuttle"}
 
 # Reference palette (dataviz skill): surfaces, ink, categorical slots, diverging.
 SURFACE = "#fcfcfb"
@@ -97,7 +106,8 @@ def fig_reliability(rel: pd.DataFrame, out: Path, top: int = 14) -> Path:
     _style()
     r = rel.dropna(subset=["icc"]).head(top).iloc[::-1]
     fig, ax = plt.subplots(figsize=(7, 0.32 * len(r) + 1.2))
-    labels = [f"{m}  ·  {d.replace('_', ' ')}" for d, m in zip(r["drill_name"], r["metric"])]
+    labels = [f"{METRIC_LABELS.get(m, m)}  ·  {DRILL_LABELS.get(d, d)}"
+              for d, m in zip(r["drill_name"], r["metric"])]
     ax.barh(labels, r["icc"], color=SERIES[0], height=0.62)
     for i, v in enumerate(r["icc"]):
         ax.text(v + 0.01, i, f"{v:.2f}", va="center", fontsize=8, color=INK2)
@@ -132,7 +142,10 @@ def fig_translation(df: pd.DataFrame, out: Path, x="eng_S0", y="game_vmax") -> P
 
 def fig_heatmap(assoc: pd.DataFrame, out: Path, outcome="snaps_per_season", value="prho") -> Path:
     _style()
-    a = assoc[assoc["outcome"] == outcome]
+    if outcome == "primary":  # each position's own play-level outcome
+        a = assoc[assoc["outcome"] == assoc["pos_group"].map(PRIMARY_PLAY_OUTCOME)]
+    else:
+        a = assoc[assoc["outcome"] == outcome]
     m = a.pivot_table(index="feature", columns="pos_group", values=value)
     q = a.pivot_table(index="feature", columns="pos_group", values="pq" if value == "prho" else "q")
     m = m.reindex(columns=[p for p in POS_ORDER if p in m.columns])
@@ -151,11 +164,38 @@ def fig_heatmap(assoc: pd.DataFrame, out: Path, outcome="snaps_per_season", valu
                 sig = np.isfinite(q.iat[i, j]) and q.iat[i, j] < 0.10
                 ax.text(j, i, f"{v:+.2f}{'*' if sig else ''}", ha="center", va="center", fontsize=8,
                         color=INK if abs(v) < 0.35 else SURFACE, fontweight="bold" if sig else "normal")
-    ax.set_title(f"Draft-adjusted partial ρ with {outcome.replace('_', ' ')}  (* BH q < 0.10)")
+    what = "each position's play-level outcome" if outcome == "primary" else outcome.replace("_", " ")
+    ax.set_title(f"Draft-adjusted partial ρ with {what}  (* BH q < 0.10)")
+    if outcome == "primary":
+        ax.set_xticks(range(m.shape[1]),
+                      [f"{p}\n{PRIMARY_PLAY_OUTCOME[p].replace('_', ' ')}" for p in m.columns])
     ax.tick_params(length=0)
     for s in ax.spines.values():
         s.set_visible(False)
-    return _save(fig, out, "fig4_value_beyond_draft")
+    return _save(fig, out, "fig4_value_beyond_draft" + ("_play" if outcome == "primary" else ""))
+
+
+def fig_pass_rush(pr: pd.DataFrame, out: Path) -> Path:
+    """Dot-and-whisker: draft-adjusted correlation with pressure rate, EDGE vs interior."""
+    _style()
+    roles = [r for r in ("EDGE", "IDL") if r in set(pr["role"])]
+    feats = list(dict.fromkeys(pr["feature"]))
+    fig, ax = plt.subplots(figsize=(7.5, 0.42 * len(feats) + 1.4))
+    names = {"EDGE": "Edge rushers (DE/OLB)", "IDL": "Interior (DT/NT)"}
+    for k, role in enumerate(roles):
+        g = pr[pr["role"] == role].set_index("feature").reindex(feats)
+        ys = np.arange(len(feats)) + (k - (len(roles) - 1) / 2) * 0.28
+        ax.errorbar(g["prho"], ys, xerr=[g["prho"] - g["plo"], g["phi"] - g["prho"]], fmt="o",
+                    color=SERIES[k], ms=6, lw=1.6, capsize=0,
+                    label=f"{names[role]}, n≤{int(g['n'].max())}")
+    ax.axvline(0, color=AXIS, lw=1)
+    ax.set_yticks(range(len(feats)), [FEATURE_LABELS.get(f, f) for f in feats])
+    ax.invert_yaxis()
+    ax.set(xlabel="Partial ρ with pressure rate, controlling for draft slot (95% bootstrap CI)",
+           title="Pass rush: which traits predict pressure beyond draft slot?")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.4, -0.13), ncol=2, fontsize=8)
+    ax.grid(axis="y", visible=False)
+    return _save(fig, out, "fig6_pass_rush")
 
 
 def fig_increment(inc: pd.DataFrame, out: Path, outcome="snaps_per_season") -> Path:

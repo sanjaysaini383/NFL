@@ -18,7 +18,7 @@ from .outcomes import LOWER_IS_BETTER, PRIMARY_PLAY_OUTCOME
 ENGINE_FEATURES = {
     "eng_S0": "Combine top speed S0 (yd/s)",
     "eng_A0": "Combine max accel A0 (yd/s²)",
-    "eng_tau": "Combine accel time constant τ (s)",
+    "eng_tau": "Shorter accel time constant τ",
     "eng_Pmax_rel": "Combine relative power",
     "eng_brake_peak": "Combine peak braking (yd/s²)",
     "eng_turn_speed_ratio": "Combine turn speed retention",
@@ -35,12 +35,18 @@ RATIO_FEATURES = {
     "expr_accel": "Accel expression (game A0 / Combine A0)",
     "expr_brake": "Braking expression (game / Combine)",
 }
+# Finer roles inside a position group (from players.nfl_position).
+ROLES = {"DE": "EDGE", "OLB": "EDGE", "DT": "IDL", "NT": "IDL"}
+PASS_RUSH_FEATURES = ["eng_Pmax_rel", "ten_yd_split", "eng_A0", "eng_S0", "forty",
+                      "game_A0", "game_brake", "game_vmax", "combine_weight"]
+
 TRADITIONAL = ["forty", "ten_yd_split", "vertical", "broad_jump", "three_cone", "short_shuttle",
                "bench_reps", "combine_weight", "combine_height", "arm_length"]
 FEATURE_LABELS = {**ENGINE_FEATURES, **EXPRESSION_FEATURES, **RATIO_FEATURES,
-                  "forty": "40-yd time (official)", "ngs_athleticism_score": "NGS athleticism score"}
+                  "forty": "Faster 40 (official)", "ten_yd_split": "Faster 10-yd split (official)",
+                  "combine_weight": "Lighter body weight", "ngs_athleticism_score": "NGS athleticism score"}
 # metrics where a smaller value means a better athlete
-SMALLER_IS_BETTER = {"eng_tau", "forty", "ten_yd_split", "three_cone", "short_shuttle"}
+SMALLER_IS_BETTER = {"eng_tau", "forty", "ten_yd_split", "three_cone", "short_shuttle", "combine_weight"}
 
 
 def assemble(base: pd.DataFrame, engine: pd.DataFrame, expression: pd.DataFrame,
@@ -53,6 +59,7 @@ def assemble(base: pd.DataFrame, engine: pd.DataFrame, expression: pd.DataFrame,
     df["expr_accel"] = df["game_A0"] / df["eng_A0"]
     df["expr_brake"] = df["game_brake"] / df["eng_brake_peak"]
     df["log_pick"] = np.log(df["pick"])
+    df["role"] = df["nfl_position"].astype(str).str.upper().map(ROLES).fillna(df["pos_group"])
     # position percentiles make cards and comps readable
     for c in list(ENGINE_FEATURES) + list(EXPRESSION_FEATURES) + list(RATIO_FEATURES):
         if c in df:
@@ -113,6 +120,27 @@ def association_table(df: pd.DataFrame, features: list[str] | None = None) -> pd
     res["q"] = res.groupby("pos_group")["p"].transform(stats.bh_qvalues)
     res["pq"] = res.groupby("pos_group")["pp"].transform(stats.bh_qvalues)
     return res
+
+
+def pass_rush_table(df: pd.DataFrame, n_boot: int = 2000) -> pd.DataFrame:
+    """DL pressure rate vs each trait, draft-adjusted, split into EDGE and interior (IDL).
+
+    Edge rushers are lighter, faster and pressure more often, so a pooled DL
+    correlation partly measures role. Splitting by role removes that.
+    """
+    dl = df[df["pos_group"] == "DL"]
+    rows = []
+    for role, g in [("All DL", dl), *dl.groupby("role")]:
+        for f in PASS_RUSH_FEATURES:
+            if f not in g:
+                continue
+            x = g[f] * (-1 if f in SMALLER_IS_BETTER else 1)
+            r = stats.partial_spearman_ci(x, g["pressure_rate"], g["log_pick"], n_boot=n_boot)
+            rows.append({"role": role, "feature": f, **r})
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        out["pq"] = out.groupby("role")["pp"].transform(stats.bh_qvalues)
+    return out
 
 
 def incremental_value(df: pd.DataFrame, n_repeats: int = 20) -> pd.DataFrame:

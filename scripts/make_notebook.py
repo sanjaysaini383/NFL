@@ -85,7 +85,13 @@ cells += [
        "log(draft pick). Signs are oriented so positive = better athlete → more playing time. "
        "Benjamini-Hochberg q-values control false discoveries within each position."),
     code("display(Image(F / 'fig4_value_beyond_draft.png'))\n"
+         "display(Image(F / 'fig4_value_beyond_draft_play.png'))\n"
          "assoc[assoc['pq'] < 0.10].sort_values('pq')[['pos_group','outcome','feature','n','rho','prho','pq']]"),
+    md("### 5b · Pass rush: edge vs. interior\n"
+       "Edge rushers are lighter, faster and pressure more often, so a pooled DL correlation partly "
+       "measures role. Within each role: draft-adjusted partial ρ with pressure rate, 95% bootstrap CI."),
+    code("display(Image(F / 'fig6_pass_rush.png'))\n"
+         "pd.read_csv(T / 'pass_rush.csv')[['role','feature','n','prho','plo','phi','pq']]"),
     md("## 6 · Do tracking metrics add out-of-fold predictive value?\n"
        "Nested ridge models, 5-fold CV repeated 50 times, rank-transformed outcome: "
        "draft slot → + stopwatch Combine → + tracking engine & expression."),

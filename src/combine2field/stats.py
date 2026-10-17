@@ -58,6 +58,19 @@ def partial_spearman(x, y, z) -> dict:
     return {"prho": r, "pp": 2 * stats.t.sf(abs(t), df)}
 
 
+def partial_spearman_ci(x, y, z, n_boot: int = 2000, seed: int = 0) -> dict:
+    """Partial Spearman (controlling for z) with a percentile bootstrap interval."""
+    x, y, z = _clean(x, y, z)
+    point = partial_spearman(x, y, z)
+    n = x.size
+    if n < 15 or not np.isfinite(point["prho"]):
+        return {**point, "n": n, "plo": np.nan, "phi": np.nan}
+    rng = np.random.default_rng(seed)
+    boots = [partial_spearman(x[i], y[i], z[i])["prho"] for i in rng.integers(0, n, (n_boot, n))]
+    lo, hi = np.nanpercentile(boots, [2.5, 97.5])
+    return {**point, "n": n, "plo": lo, "phi": hi}
+
+
 def bh_qvalues(p) -> np.ndarray:
     """Benjamini-Hochberg adjusted p-values (NaNs preserved)."""
     p = np.asarray(p, float)

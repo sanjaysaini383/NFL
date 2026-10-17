@@ -53,13 +53,14 @@ def run(data_dir: Path, work: Path, n_repeats: int = 20, make_figures: bool = Tr
     trans = translation.translation_table(df)
     assoc = translation.association_table(df)
     inc = translation.incremental_value(df, n_repeats=n_repeats)
+    pass_rush = translation.pass_rush_table(df)
     log("statistics done", t0)
 
     df.to_parquet(tables / "players.parquet", index=False)
     bins.to_parquet(tables / "game_as_bins.parquet", index=False)
     attempts.to_parquet(tables / "combine_attempts.parquet", index=False)
     for name, t in {"reliability": rel, "translation": trans, "associations": assoc,
-                    "incremental_value": inc}.items():
+                    "incremental_value": inc, "pass_rush": pass_rush}.items():
         t.to_csv(tables / f"{name}.csv", index=False)
 
     if make_figures:
@@ -71,11 +72,17 @@ def run(data_dir: Path, work: Path, n_repeats: int = 20, make_figures: bool = Tr
         report.fig_translation(df, figs)
         if not assoc.empty:
             report.fig_heatmap(assoc, figs)
+            report.fig_heatmap(assoc, figs, outcome="primary")
+        if not pass_rush.empty and pass_rush["prho"].notna().any():
+            report.fig_pass_rush(pass_rush, figs)
         if not inc.empty:
             report.fig_increment(inc, figs)
         log(f"figures -> {figs}", t0)
 
     summary = summarise(df, rel, trans, assoc, inc)
+    if not pass_rush.empty:
+        summary["pass_rush"] = pass_rush[["role", "feature", "n", "prho", "plo", "phi", "pp", "pq"]] \
+            .round(3).to_dict("records")
     (work / "results.json").write_text(json.dumps(summary, indent=2, default=float))
     log(f"done -> {work}", t0)
     return summary
