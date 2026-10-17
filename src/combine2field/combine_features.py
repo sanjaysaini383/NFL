@@ -79,6 +79,31 @@ def fit_sprint(t: np.ndarray, x: np.ndarray, y: np.ndarray) -> dict:
     return out
 
 
+def engine_from_splits(t10: float, t40: float) -> dict:
+    """Recover (S0, tau, A0) from official 10- and 40-yard times.
+
+    Solves x(t) = S0 * (t - tau * (1 - exp(-t / tau))) through both splits, so a
+    prospect with only stopwatch data can be placed on the same A-S axes.
+    """
+    from scipy.optimize import brentq
+
+    def dist(t, s0, tau):
+        return s0 * (t - tau * (1 - np.exp(-t / tau)))
+
+    def s0_for(tau):  # S0 that makes the 40 exact for a given tau
+        return 40.0 / (t40 - tau * (1 - np.exp(-t40 / tau)))
+
+    def resid(tau):
+        return dist(t10, s0_for(tau), tau) - 10.0
+
+    try:
+        tau = brentq(resid, 0.2, min(3.0, t40 * 0.6))
+    except ValueError:
+        return {"S0": np.nan, "tau": np.nan, "A0": np.nan}
+    s0 = s0_for(tau)
+    return {"S0": s0, "tau": tau, "A0": s0 / tau}
+
+
 def cod_features(t: np.ndarray, x: np.ndarray, y: np.ndarray) -> dict:
     """Braking and turn features for one change-of-direction attempt."""
     out = {k: np.nan for k in ("brake_peak", "brake_mean", "turn_speed_ratio", "reaccel_peak",

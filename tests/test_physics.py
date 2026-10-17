@@ -63,3 +63,16 @@ def test_time_parsing_handles_mixed_separators():
     s = pd.Series(["2025-03-01T10:00:00.000000", "2025-03-01 10:00:00.100000"])
     sec = io.time_to_seconds(s)
     assert sec[1] - sec[0] == pytest.approx(0.1, abs=1e-6)
+
+
+def test_engine_from_splits_round_trip():
+    s0, tau = 10.0, 1.1
+    tt = np.linspace(0, 8, 80001)
+    x = s0 * (tt - tau * (1 - np.exp(-tt / tau)))
+    t10, t40 = tt[np.searchsorted(x, 10)], tt[np.searchsorted(x, 40)]
+    out = cf.engine_from_splits(t10, t40)
+    assert out["S0"] == pytest.approx(s0, rel=0.01)
+    assert out["tau"] == pytest.approx(tau, rel=0.02)
+    # a realistic WR: 1.50 / 4.40
+    real = cf.engine_from_splits(1.50, 4.40)
+    assert 9 < real["S0"] < 13 and real["A0"] > 5
