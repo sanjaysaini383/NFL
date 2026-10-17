@@ -13,13 +13,19 @@ _KAGGLE_DIRS = [
 ]
 
 
+def on_kaggle() -> bool:
+    """True only inside a Kaggle kernel (a stray local /kaggle folder must not count)."""
+    return "KAGGLE_KERNEL_RUN_TYPE" in os.environ
+
+
 def data_dir() -> Path:
     env = os.environ.get("BDB_DATA_DIR")
     if env:
         return Path(env)
-    for d in _KAGGLE_DIRS:
-        if d.exists():
-            return d
+    if on_kaggle():
+        for d in _KAGGLE_DIRS:
+            if d.exists():
+                return d
     return ROOT / "data" / "raw"
 
 
@@ -28,7 +34,7 @@ def work_dir() -> Path:
     env = os.environ.get("BDB_WORK_DIR")
     if env:
         return Path(env)
-    if Path("/kaggle/working").exists():
+    if on_kaggle():
         return Path("/kaggle/working/c2f")
     return ROOT / "outputs"
 
@@ -64,3 +70,6 @@ AS_MIN_SPEED = 3.0  # yd/s, ignore the noisy low-speed region
 AS_BIN = 0.2  # yd/s
 AS_TOP_N = 2  # top accelerations kept per bin
 AS_MIN_BINS = 8  # minimum bins required for a valid fit
+
+# Equal exposure: every player's in-game metrics use this many random plays.
+EXPOSURE_PLAYS = 80

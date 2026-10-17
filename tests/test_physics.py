@@ -86,3 +86,14 @@ def test_sprint_fit_ignores_walk_up_before_stance():
     out = cf.fit_sprint(t, xs, np.zeros_like(xs))
     assert out["S0"] == pytest.approx(10.0, rel=0.03)
     assert out["tau"] == pytest.approx(1.05, rel=0.1)
+
+
+def test_sample_plays_gives_equal_exposure():
+    keys = pd.DataFrame({
+        "nfl_id": [1] * 50 + [2] * 10,
+        "game_id": 1,
+        "play_id": list(range(50)) + list(range(10)),
+    })
+    s = gp.sample_plays(keys, k=20)
+    assert s.groupby("nfl_id").size().to_dict() == {1: 20}  # player 2 has too few plays
+    assert s.equals(gp.sample_plays(keys, k=20))  # deterministic

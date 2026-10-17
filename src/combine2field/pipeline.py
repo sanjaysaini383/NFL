@@ -22,7 +22,8 @@ def log(msg: str, t0: float) -> None:
     print(f"[{time.time() - t0:7.1f}s] {msg}", flush=True)
 
 
-def run(data_dir: Path, work: Path, n_repeats: int = 20, make_figures: bool = True) -> dict:
+def run(data_dir: Path, work: Path, n_repeats: int = 20, make_figures: bool = True,
+        exposure: int | None = config.EXPOSURE_PLAYS) -> dict:
     t0 = time.time()
     tables = work / "tables"
     figs = work / "figures"
@@ -39,8 +40,9 @@ def run(data_dir: Path, work: Path, n_repeats: int = 20, make_figures: bool = Tr
     rel = translation.reliability(cf.retest_pairs(attempts))
     log(f"combine attempts: {len(attempts)}, players with engine: {len(engine)}", t0)
 
-    expression, bins, plays = game_profile.build(ids, data_dir, work)
-    log(f"game expression for {expression['game_A0'].notna().sum()} players", t0)
+    expression, bins, plays = game_profile.build(ids, data_dir, work, plays_per_player=exposure)
+    log(f"game expression for {expression['game_A0'].notna().sum()} players "
+        f"({exposure or 'all'} plays each)", t0)
 
     car = outcomes.career_outcomes(base)
     pp = io.player_play(data_dir, outcomes.PLAY_COLUMNS)
@@ -84,6 +86,9 @@ def summarise(df, rel, trans, assoc, inc) -> dict:
          "n_by_position": df["pos_group"].value_counts().to_dict(),
          "n_with_engine": int(df["eng_S0"].notna().sum()),
          "n_with_expression": int(df["game_A0"].notna().sum())}
+    s["exposure_check_rho_nplays"] = {
+        c: round(float(df[[c, "game_n_plays_total"]].corr(method="spearman").iloc[0, 1]), 3)
+        for c in ("game_vmax", "game_S0", "game_A0") if c in df and "game_n_plays_total" in df}
     s["median_speed_expression"] = df.groupby("pos_group")["expr_speed"].median().round(3).to_dict()
     s["top_reliability"] = rel.head(5)[["drill_name", "metric", "icc"]].to_dict("records")
     if not assoc.empty:
@@ -104,6 +109,8 @@ def main(argv=None) -> None:
     ap.add_argument("--synthetic", action="store_true", help="generate and analyse SYNTHETIC data")
     ap.add_argument("--repeats", type=int, default=20, help="CV repeats for incremental value")
     ap.add_argument("--no-figures", action="store_true")
+    ap.add_argument("--exposure", type=int, default=config.EXPOSURE_PLAYS,
+                    help="random plays per player for in-game metrics (0 = use all plays)")
     a = ap.parse_args(argv)
     work = a.work_dir or config.work_dir()
     data_dir = a.data_dir or config.data_dir()
@@ -111,7 +118,10 @@ def main(argv=None) -> None:
         work = a.work_dir or (config.ROOT / "outputs" / "synthetic")
         data_dir = synthetic.write(work / "raw", n_per_pos=30, plays_per_player=60)
     pd.set_option("display.width", 160)
-    summary = run(data_dir, work, a.repeats, not a.no_figures)
+    exposure = a.exposure or None
+    if a.synthetic:
+        exposure = min(exposure or 40, 40)
+    summary = run(data_dir, work, a.repeats, not a.no_figures, exposure)
     print(json.dumps({k: summary[k] for k in ("n_players", "n_with_engine", "n_with_expression",
                                               "median_speed_expression")}, indent=2, default=float))
 

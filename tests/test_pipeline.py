@@ -6,7 +6,7 @@ from combine2field import pipeline, synthetic
 def test_pipeline_end_to_end_on_synthetic(tmp_path):
     raw = synthetic.write(tmp_path / "raw", n_per_pos=12, plays_per_player=40, seed=11)
     work = tmp_path / "work"
-    summary = pipeline.run(raw, work, n_repeats=2, make_figures=True)
+    summary = pipeline.run(raw, work, n_repeats=2, make_figures=True, exposure=25)
 
     assert summary["n_players"] == 60
     assert summary["n_with_engine"] >= 55

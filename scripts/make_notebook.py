@@ -57,7 +57,7 @@ cells += [
          "    DATA = synthetic.write(Path(TMP) / 'c2f_raw', n_per_pos=30, plays_per_player=60)\n"
          "WORK = Path(TMP) / 'c2f'\n"
          "summary = pipeline.run(DATA, WORK, n_repeats=int(os.environ.get('C2F_REPEATS', 50)))\n"
-         "PUBLIC = Path('/kaggle/working') if Path('/kaggle/working').exists() else Path('outputs/notebook')\n"
+         "PUBLIC = Path('/kaggle/working') if config.on_kaggle() else Path(TMP) / 'c2f_public'\n"
          "shutil.copytree(WORK / 'figures', PUBLIC / 'figures', dirs_exist_ok=True)\n"
          "print(json.dumps({k: summary[k] for k in ('n_players','n_with_engine','n_with_expression')}, indent=2))"),
     code("import pandas as pd\nfrom IPython.display import Image, display\n"

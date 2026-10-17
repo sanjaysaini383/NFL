@@ -99,21 +99,57 @@ def player_expression(bins: pd.DataFrame, plays: pd.DataFrame) -> pd.DataFrame:
     return peaks.join(prof, how="left").rename_axis("nfl_id").reset_index()
 
 
+def sample_plays(play_keys: pd.DataFrame, k: int, seed: int = 2027) -> pd.DataFrame:
+    """Pick the same number of plays (k) for every player, at random.
+
+    Peak-based metrics rise with the number of chances a player gets, and
+    players who earn more snaps get more chances. Measuring everyone on k
+    random plays removes that exposure effect. Players with fewer than k
+    tracked plays are dropped rather than measured on a smaller sample.
+    """
+    rng = np.random.default_rng(seed)
+    pk = play_keys.drop_duplicates().assign(_u=lambda d: rng.random(len(d)))
+    pk["_rank"] = pk.groupby("nfl_id")["_u"].rank(method="first")
+    n = pk.groupby("nfl_id")["_u"].transform("size")
+    return pk[(pk["_rank"] <= k) & (n >= k)][PLAY_KEYS].reset_index(drop=True)
+
+
 def build(nfl_ids: set | None = None, data_dir: Path | None = None, work: Path | None = None,
-          seasons=config.SEASONS) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Run the per-season reduction and return (expression, bins, plays)."""
-    all_bins, all_plays = [], []
-    for season in seasons:
+          seasons=config.SEASONS, plays_per_player: int | None = config.EXPOSURE_PLAYS,
+          ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Run the per-season reduction and return (expression, bins, plays).
+
+    With `plays_per_player` set, every player is measured on the same number of
+    randomly sampled plays (equal exposure); `game_n_plays_total` keeps the full count.
+    """
+    def load(season):
         try:
             gt = io.game_tracking(season, data_dir, work)
         except FileNotFoundError:
+            return None
+        return gt[gt["nfl_id"].isin(nfl_ids)] if nfl_ids is not None else gt
+
+    # pass 1: which plays exist for each player
+    keys = [g[PLAY_KEYS].drop_duplicates() for s in seasons if (g := load(s)) is not None]
+    if not keys:
+        raise FileNotFoundError("No game_tracking_<season>.csv files found")
+    keys = pd.concat(keys, ignore_index=True)
+    totals = keys.groupby("nfl_id").size().rename("game_n_plays_total")
+    chosen = sample_plays(keys, plays_per_player) if plays_per_player else keys
+    chosen_idx = pd.MultiIndex.from_frame(chosen)
+
+    # pass 2: reduce only the chosen plays
+    all_bins, all_plays = [], []
+    for season in seasons:
+        gt = load(season)
+        if gt is None:
             continue
-        b, p = frame_reduce(gt, nfl_ids)
+        gt = gt[pd.MultiIndex.from_frame(gt[PLAY_KEYS]).isin(chosen_idx)]
+        b, p = frame_reduce(gt)
         all_bins.append(b)
         all_plays.append(p)
         del gt
-    if not all_bins:
-        raise FileNotFoundError("No game_tracking_<season>.csv files found")
     bins = pd.concat(all_bins, ignore_index=True)
     plays = pd.concat(all_plays, ignore_index=True)
-    return player_expression(bins, plays), top_n_per_bin(bins), plays
+    expr = player_expression(bins, plays).merge(totals.reset_index(), on="nfl_id", how="right")
+    return expr, top_n_per_bin(bins), plays
