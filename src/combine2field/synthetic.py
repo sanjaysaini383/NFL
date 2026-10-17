@@ -217,8 +217,8 @@ def _ct_frame(nfl_id, draft_year, drill, dtype, attempt, event_seq, t_clock, xy)
     s, a = _speed_acc(xy)
     t = t_clock + np.arange(len(xy)) * config.DT
     return pd.DataFrame({
-        "nfl_id": nfl_id, "draft_year": draft_year, "drill_name": drill, "drill_type": dtype,
-        "entity_type": "player", "attempt": attempt, "event_id": f"SYN_{event_seq:05d}",
+        "nfl_id": nfl_id, "draft_year": draft_year, "drill_name": drill.upper(),
+        "drill_type": dtype.upper(), "entity_type": "PLAYER", "attempt": attempt, "event_id": f"SYN_{event_seq:05d}",
         "time": _iso(t), "x": xy[:, 0], "y": xy[:, 1], "s": s, "a": a,
         "dis": s * config.DT, "dir": 90.0,
     })
@@ -228,7 +228,7 @@ def _pp_row(pos, gid, play_id, nfl_id, talent, rng):
     row = {"game_id": gid, "play_id": play_id, "nfl_id": nfl_id, "team_abbr": "SYN",
            "route_ran": np.nan, "separation_at_pass_forward": np.nan, "target": False,
            "pressure_allowed": np.nan, "time_to_pressure": np.nan, "player_get_off": np.nan,
-           "sack": 0, "tackle": 0, "pass_rushers_encountered": np.nan}
+           "sack": 0, "tackle": np.nan, "assist": np.nan, "pass_rushers_encountered": np.nan}
     if pos in ("WR", "TE"):
         row["route_ran"] = rng.choice(["go", "hitch", "slant", "out", "post"])
         row["separation_at_pass_forward"] = max(0.3, rng.normal(3.0 + 0.35 * talent, 1.2))
@@ -241,7 +241,9 @@ def _pp_row(pos, gid, play_id, nfl_id, talent, rng):
         row["time_to_pressure"] = rng.uniform(1.8, 3.5) if pressured else np.nan
         row["player_get_off"] = max(0.4, rng.normal(0.95 - 0.04 * talent, 0.1))
     else:
-        row["tackle"] = int(rng.random() < 0.08 + 0.01 * talent)
+        if rng.random() < 0.08 + 0.01 * talent:  # real data: blank unless involved
+            solo = rng.random() < 0.6
+            row["tackle"], row["assist"] = (1, 0) if solo else (0, 1)
     return row
 
 

@@ -36,8 +36,9 @@ def frame_reduce(gt: pd.DataFrame, nfl_ids: set | None = None) -> tuple[pd.DataF
     """
     if nfl_ids is not None:
         gt = gt[gt["nfl_id"].isin(nfl_ids)]
-    gt = gt.dropna(subset=["nfl_id", "s", "t"]).sort_values(PLAY_KEYS + ["t"], kind="stable")
-    gt = gt.assign(a_tan=grouped_tangential_acc(gt, PLAY_KEYS).to_numpy())
+    gt = gt[PLAY_KEYS + ["t", "s"]].dropna().sort_values(PLAY_KEYS + ["t"], kind="stable",
+                                                         ignore_index=True)
+    gt["a_tan"] = grouped_tangential_acc(gt, PLAY_KEYS).to_numpy(dtype="float32")
     gt = gt[(gt["s"] <= MAX_SPEED) & (gt["a_tan"].abs() <= MAX_ACC)]
 
     plays = gt.groupby(PLAY_KEYS, sort=False).agg(

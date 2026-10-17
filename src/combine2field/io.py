@@ -19,7 +19,7 @@ COMBINE_TRACKING_COLS = [
     "nfl_id", "drill_name", "drill_type", "entity_type", "attempt", "event_id",
     "time", "x", "y", "s", "a",
 ]
-GAME_TRACKING_COLS = ["game_id", "play_id", "nfl_id", "time", "x", "y", "s", "a", "event"]
+GAME_TRACKING_COLS = ["game_id", "play_id", "nfl_id", "time", "s"]
 
 
 def _path(name: str, data_dir: Path | None = None) -> Path:
@@ -81,9 +81,19 @@ def _cached(name: str, usecols: list[str], data_dir: Path | None, work: Path | N
     src = _path(name, data_dir)
     header = pd.read_csv(src, nrows=0).columns
     cols = [c for c in usecols if c in header]
-    df = pd.read_csv(src, usecols=cols, na_values=NA, low_memory=False,
-                     dtype={k: v for k, v in dtypes.items() if k in cols})
-    df["t"] = time_to_seconds(df.pop("time"))
+    # Read in chunks so the timestamp strings (the bulk of the memory) never all
+    # sit in RAM at once; each chunk keeps only compact numeric columns.
+    parts = []
+    for chunk in pd.read_csv(src, usecols=cols, na_values=NA, low_memory=False, chunksize=2_000_000,
+                             dtype={k: v for k, v in dtypes.items() if k in cols}):
+        chunk["t"] = time_to_seconds(chunk.pop("time"))
+        chunk = chunk.dropna(subset=["nfl_id"])
+        chunk["nfl_id"] = chunk["nfl_id"].astype("int32")
+        if "play_id" in chunk:
+            chunk["play_id"] = chunk["play_id"].astype("int32")
+        parts.append(chunk)
+    df = pd.concat(parts, ignore_index=True)
+    del parts
     cache.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(cache, index=False)
     return df
@@ -94,6 +104,10 @@ def combine_tracking(data_dir: Path | None = None, work: Path | None = None) -> 
         "combine_tracking.csv", COMBINE_TRACKING_COLS, data_dir, work,
         {"x": "float32", "y": "float32", "s": "float32", "a": "float32"},
     )
+    # The real files use upper case (PLAYER, FORTY_YARD_DASH); normalise once here.
+    for c in ("drill_name", "drill_type", "entity_type"):
+        if c in df:
+            df[c] = df[c].str.lower()
     if "entity_type" in df:
         df = df[df["entity_type"].fillna("player") == "player"]
     return df

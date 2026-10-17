@@ -14,7 +14,7 @@ from . import config
 PLAY_COLUMNS = [
     "game_id", "play_id", "nfl_id", "route_ran", "separation_at_pass_forward", "target",
     "pressure_allowed", "sack_allowed", "time_to_pressure", "player_get_off",
-    "pass_rushers_encountered", "tackle", "sack",
+    "pass_rushers_encountered", "tackle", "assist", "sack",
 ]
 MIN_PLAYS = 30
 
@@ -65,7 +65,6 @@ def play_outcomes(pp: pd.DataFrame) -> pd.DataFrame:
     for c in ("target", "pressure_allowed", "sack_allowed"):
         if c in pp:
             pp[c] = _bool(pp[c])
-    g = pp.groupby("nfl_id")
     parts = []
     if "route_ran" in pp:
         routes = pp[pp["route_ran"].notna()]
@@ -91,7 +90,12 @@ def play_outcomes(pp: pd.DataFrame) -> pd.DataFrame:
         k.loc[k["n_pass_rush"] < MIN_PLAYS, ["pressure_rate", "get_off"]] = np.nan
         parts.append(k)
     if "tackle" in pp:
-        t = g.agg(n_plays=("play_id", "size"), tackle_rate=("tackle", "mean"))
+        # tackle/assist are only filled when the player was involved; blank = no tackle.
+        # Solo tackles count 1, assists 0.5.
+        pp["tackle_credit"] = (pp["tackle"].fillna(0) == 1).astype(float)
+        if "assist" in pp:
+            pp["tackle_credit"] += 0.5 * (pp["assist"].fillna(0) == 1)
+        t = pp.groupby("nfl_id").agg(n_plays=("play_id", "size"), tackle_rate=("tackle_credit", "mean"))
         t.loc[t["n_plays"] < MIN_PLAYS, "tackle_rate"] = np.nan
         parts.append(t)
     if not parts:
