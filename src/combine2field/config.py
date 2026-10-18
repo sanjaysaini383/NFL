@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 _KAGGLE_DIRS = [
     Path("/kaggle/input/nfl-big-data-bowl-2027"),
     Path("/kaggle/input/competitions/nfl-big-data-bowl-2027"),
+    Path("/kaggle/input/competitions/nfl-big-data-bowl-2027/nfl-big-data-bowl-2027"),
 ]
 
 
