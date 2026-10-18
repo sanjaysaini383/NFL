@@ -15,7 +15,20 @@ _KAGGLE_DIRS = [
 
 def on_kaggle() -> bool:
     """True only inside a Kaggle kernel (a stray local /kaggle folder must not count)."""
-    return "KAGGLE_KERNEL_RUN_TYPE" in os.environ
+    return "KAGGLE_KERNEL_RUN_TYPE" in os.environ or Path("/kaggle/input").is_dir() and os.name != "nt"
+
+
+def find_kaggle_data() -> Path | None:
+    """Locate players.csv anywhere under /kaggle/input (mount paths vary between kernels)."""
+    for d in _KAGGLE_DIRS:
+        if (d / "players.csv").exists():
+            return d
+    base = Path("/kaggle/input")
+    if base.is_dir():
+        for hit in sorted(base.rglob("players.csv")):
+            if (hit.parent / "combine_tracking.csv").exists():
+                return hit.parent
+    return None
 
 
 def data_dir() -> Path:
@@ -23,9 +36,9 @@ def data_dir() -> Path:
     if env:
         return Path(env)
     if on_kaggle():
-        for d in _KAGGLE_DIRS:
-            if d.exists():
-                return d
+        found = find_kaggle_data()
+        if found is not None:
+            return found
     return ROOT / "data" / "raw"
 
 

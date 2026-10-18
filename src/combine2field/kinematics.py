@@ -45,6 +45,8 @@ def grouped_tangential_acc(df: pd.DataFrame, keys: list[str], s_col: str = "s") 
 
     `df` must already be sorted by keys + "t". Rows at a group boundary get NaN.
     """
+    if len(df) == 0:
+        return pd.Series(np.array([], dtype=float), index=df.index)
     same_prev = np.ones(len(df), dtype=bool)
     same_next = np.ones(len(df), dtype=bool)
     for k in keys:

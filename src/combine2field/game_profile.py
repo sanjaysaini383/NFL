@@ -136,6 +136,8 @@ def build(nfl_ids: set | None = None, data_dir: Path | None = None, work: Path |
     keys = pd.concat(keys, ignore_index=True)
     totals = keys.groupby("nfl_id").size().rename("game_n_plays_total")
     chosen = sample_plays(keys, plays_per_player) if plays_per_player else keys
+    if chosen.empty:
+        raise ValueError(f"No player has {plays_per_player} tracked plays; lower plays_per_player")
     chosen_idx = pd.MultiIndex.from_frame(chosen)
 
     # pass 2: reduce only the chosen plays
