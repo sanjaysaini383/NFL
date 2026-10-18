@@ -47,7 +47,8 @@ cells += [
     md("## 1 · Run the pipeline\n"
        "Reads the competition files from `/kaggle/input`. Derived tables are written to a temp directory "
        "(not published); figures are copied to `/kaggle/working/figures`."),
-    code("import os, shutil, json\nfrom pathlib import Path\n"
+    code("import os, shutil, json, logging\nfrom pathlib import Path\n"
+         "logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)  # no font-fallback noise\n"
          "from combine2field import config, pipeline\n"
          "DATA = config.data_dir()\n"
          "EXPOSURE = config.EXPOSURE_PLAYS\n"
