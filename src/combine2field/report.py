@@ -39,6 +39,13 @@ DIVERGING = LinearSegmentedColormap.from_list(
 POS_ORDER = list(config.POSITION_GROUPS)
 
 
+def _font() -> list[str]:
+    """First installed UI font, so Linux (Kaggle) doesn't log a warning per text element."""
+    from matplotlib import font_manager
+    have = {f.name for f in font_manager.fontManager.ttflist}
+    return [f for f in ("Segoe UI", "DejaVu Sans") if f in have] or ["sans-serif"]
+
+
 def _style():
     plt.rcParams.update({
         "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
@@ -46,7 +53,7 @@ def _style():
         "ytick.labelcolor": INK2, "xtick.labelcolor": INK2,
         "xtick.color": MUTED, "ytick.color": MUTED, "axes.grid": True, "grid.color": GRID,
         "grid.linewidth": 0.6, "axes.spines.top": False, "axes.spines.right": False,
-        "font.family": ["Segoe UI", "DejaVu Sans", "sans-serif"], "font.size": 10,
+        "font.family": _font(), "font.size": 10,
         "axes.titlesize": 11, "axes.titleweight": "bold", "axes.titlelocation": "left",
         "lines.linewidth": 2, "legend.frameon": False,
     })
