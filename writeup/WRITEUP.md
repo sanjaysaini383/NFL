@@ -99,4 +99,4 @@ Groups contain about 100 players (TE about 30), and the 2025 class has one seaso
 
 Morin J-B et al. (2021) Individual acceleration-speed profile in-situ. *J Biomech*. · Samozino P et al. (2016) A simple method for measuring power, force, velocity properties, and mechanical effectiveness in sprint running. *Scand J Med Sci Sports*. · Shrout P, Fleiss J (1979) Intraclass correlations. *Psychol Bull*. · Benjamini Y, Hochberg Y (1995) Controlling the false discovery rate. *JRSS-B*.
 
-*Code, tests and app: https://github.com/sanjaysaini383/NFL · Kaggle notebook: (add link after publishing)*
+*Code, tests and app: https://github.com/sanjaysaini383/NFL · Kaggle notebook: https://www.kaggle.com/code/sanjaysaini383/nfl-big-data*

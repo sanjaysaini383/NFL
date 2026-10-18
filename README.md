@@ -20,7 +20,7 @@ Then we ask, per position: Is the metric reliable (test-retest ICC)? How much of
 * **For snaps and starts, draft slot already prices athleticism in.** Naive in-game peaks look predictive only because starters get more chances; measuring every player on 80 random plays removes the effect.
 * **Edge rushers: draft the first step, not the top speed.** Beyond draft slot, relative power (+0.35), the 10-yd split (+0.35) and in-game acceleration and braking predict pressure rate. Top speed doesn't (+0.01).
 
-Full write-up: [writeup/WRITEUP.md](writeup/WRITEUP.md).
+Full write-up: [writeup/WRITEUP.md](writeup/WRITEUP.md) · Kaggle notebook: https://www.kaggle.com/code/sanjaysaini383/nfl-big-data
 
 ## What's in the repo
 
